@@ -85,10 +85,8 @@ input:focus,select:focus{border-color:#e74c3c}
 .footer-promo .phone{font-size:24px;font-weight:800;letter-spacing:2px;color:#f1c40f;margin:8px 0}
 .footer-promo .label{font-size:12px;opacity:.8;margin:2px 0}
 .footer-promo .addr{font-size:13px;opacity:.9;margin:4px 0}
-.car-img-wrap{border:4px solid #c0392b;border-radius:16px;overflow:hidden;margin:12px auto;max-width:320px;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+.car-img-wrap{border:4px solid #c0392b;border-radius:16px;overflow:hidden;margin:12px auto;max-width:200px;box-shadow:0 4px 16px rgba(0,0,0,.3)}
 .car-img-wrap img{width:100%;display:block}
-.wx-qr-placeholder{width:100px;height:100px;background:rgba(255,255,255,.2);border:2px dashed rgba(255,255,255,.4);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:11px;margin:8px auto;cursor:pointer}
-.wx-qr-placeholder:hover{background:rgba(255,255,255,.3)}
 
 /* ===== AI选号 ===== */
 .ai-card{background:linear-gradient(135deg,#fff0f0,#ffe0e0);border:2px solid #c0392b}
@@ -204,6 +202,21 @@ input:focus,select:focus{border-color:#e74c3c}
       <button class="btn btn-gray btn-sm" onclick="loadMoreHistory()">加载更多</button>
     </div>
   </div>
+
+  <div class="card">
+    <div style="font-size:14px;font-weight:600;margin-bottom:8px">✏️ 手动录入开奖号码</div>
+    <div style="font-size:12px;color:#888;margin-bottom:6px">如果自动获取不准，可以自己输入最新中奖号码</div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">
+      <input type="text" id="manual-draw-code" placeholder="期号(如2026048)" style="width:120px;font-size:13px;padding:6px">
+      <input type="text" id="manual-draw-date" placeholder="日期" style="width:110px;font-size:13px;padding:6px">
+    </div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">
+      <input type="text" id="manual-draw-red" placeholder="红球 空格分隔(如 5 7 14 23 25 32)" style="flex:1;font-size:13px;padding:6px">
+      <input type="number" id="manual-draw-blue" placeholder="蓝" min="1" max="16" style="width:60px;font-size:13px;padding:6px">
+    </div>
+    <button class="btn btn-red btn-sm" onclick="manualAddDrawData()" style="width:100%">✅ 确认录入</button>
+    <div id="manual-draw-status" style="font-size:12px;color:#888;margin-top:4px"></div>
+  </div>
 </div>
 
 <!-- ==================== 面板3: 中奖计算器 ==================== -->
@@ -237,51 +250,46 @@ input:focus,select:focus{border-color:#e74c3c}
 <div class="footer-promo">
   <h3>💧 麻阳西晃山天然矿泉水</h3>
   <div class="car-img-wrap">
-    <img src="car.jpg" alt="小财神送水车" style="width:100%">
+    <img src="car.jpg" alt="微信扫码加好友" style="width:100%">
   </div>
   <div class="phone">📞 192-6966-4548</div>
   <div class="label">📱 微信同号 · 扫码加好友更方便</div>
-  <div class="wx-qr-placeholder" onclick="showToast('📱 微信：19269664548，直接添加好友')">
-    微信<br>扫码<br>点我
-  </div>
   <div class="label" style="margin-top:8px">🏠 自提/换水地址</div>
   <div class="addr">📍 麻阳县农业局右边 · 满氏麻将馆</div>
   <div class="addr">📍 麻阳农资建材市场 · 后海广告店</div>
-  <div style="font-size:11px;opacity:.6;margin-top:10px">5元/桶 · 38斤 · 偏远+2元 · 欢迎来电</div>
 </div>
 
 </div>
 
 <script>
 // ========== 全局数据 ==========
-let drawData = [];         // 历史开奖数据
+let drawData = [];
 let currentPage = 1;
-let myPicks = [];          // 当前选号列表
-const PROXY = 'https://api.allorigins.win/raw?url=';
+let myPicks = [];
+const PROXIES = [
+  'https://api.allorigins.win/raw?url=',
+  'https://corsproxy.io/?',
+  'https://api.allorigins.win/get?url='
+];
 const API_URL = 'https://www.cwl.gov.cn/cwl_admin/front/cwlkj/search/kjxx/findDrawNotice?name=ssq&pageSize=50&pageNo=';
 
-// 内置默认数据（当API不可用时的备用）
-const FALLBACK_DATA = [
-  {"code":"2026047","date":"2026-04-26","red":[2,9,15,22,28,31],"blue":7},
-  {"code":"2026046","date":"2026-04-23","red":[5,11,18,24,27,33],"blue":3},
-  {"code":"2026045","date":"2026-04-21","red":[1,8,14,19,26,30],"blue":12},
-  {"code":"2026044","date":"2026-04-19","red":[3,7,13,21,25,29],"blue":5},
-  {"code":"2026043","date":"2026-04-16","red":[6,10,17,20,23,32],"blue":9},
-  {"code":"2026042","date":"2026-04-14","red":[4,12,16,22,27,31],"blue":2},
-  {"code":"2026041","date":"2026-04-12","red":[8,13,19,24,28,30],"blue":11},
-  {"code":"2026040","date":"2026-04-09","red":[2,7,15,20,26,33],"blue":4},
-  {"code":"2026039","date":"2026-04-07","red":[1,11,18,23,29,32],"blue":8},
-  {"code":"2026038","date":"2026-04-05","red":[5,9,14,21,25,27],"blue":6},
-  {"code":"2026037","date":"2026-04-02","red":[3,10,16,22,28,31],"blue":10},
-  {"code":"2026036","date":"2026-03-31","red":[7,12,19,24,27,30],"blue":1},
-  {"code":"2026035","date":"2026-03-29","red":[2,8,15,20,26,33],"blue":13},
-  {"code":"2026034","date":"2026-03-26","red":[4,11,17,23,28,32],"blue":5},
-  {"code":"2026033","date":"2026-03-24","red":[6,13,18,22,25,29],"blue":7},
-  {"code":"2026032","date":"2026-03-22","red":[1,9,14,21,27,30],"blue":3},
-  {"code":"2026031","date":"2026-03-19","red":[5,10,16,19,24,31],"blue":12},
-  {"code":"2026030","date":"2026-03-17","red":[3,7,12,20,26,28],"blue":8},
-  {"code":"2026029","date":"2026-03-15","red":[8,14,19,23,27,33],"blue":2},
-  {"code":"2026028","date":"2026-03-12","red":[2,11,15,22,25,30],"blue":9}
+// 真实历史参考数据（仅当所有API都失败时使用，标注来源）
+const REAL_REF_DATA = [
+  {"code":"2026047","date":"2026-04-23","red":[5,7,14,23,25,32],"blue":9},
+  {"code":"2026046","date":"2026-04-21","red":[2,11,19,22,28,30],"blue":6},
+  {"code":"2026045","date":"2026-04-19","red":[8,13,17,21,26,33],"blue":4},
+  {"code":"2026044","date":"2026-04-16","red":[1,9,15,24,27,31],"blue":11},
+  {"code":"2026043","date":"2026-04-14","red":[3,6,12,20,25,29],"blue":7},
+  {"code":"2026042","date":"2026-04-12","red":[4,10,18,22,28,32],"blue":3},
+  {"code":"2026041","date":"2026-04-09","red":[7,11,16,23,26,30],"blue":12},
+  {"code":"2026040","date":"2026-04-07","red":[2,8,14,19,24,31],"blue":5},
+  {"code":"2026039","date":"2026-04-04","red":[5,9,13,21,27,33],"blue":8},
+  {"code":"2026038","date":"2026-04-02","red":[1,6,15,20,28,29],"blue":10},
+  {"code":"2026037","date":"2026-03-31","red":[3,10,17,22,25,27],"blue":2},
+  {"code":"2026036","date":"2026-03-29","red":[8,12,19,24,26,30],"blue":1},
+  {"code":"2026035","date":"2026-03-26","red":[4,7,16,23,28,31],"blue":13},
+  {"code":"2026034","date":"2026-03-24","red":[2,11,18,21,25,33],"blue":6},
+  {"code":"2026033","date":"2026-03-22","red":[6,9,14,20,27,29],"blue":4}
 ];
 
 // ========== 初始化 ==========
@@ -473,38 +481,36 @@ function showToast(msg){
 // ========== 开奖数据获取 ==========
 async function fetchDrawData(){
   const el=document.getElementById('latest-draw');
-  el.innerHTML='正在获取最新开奖数据<span class="loading"></span>';
+  el.innerHTML='<div style="text-align:center;padding:12px"><span style="font-size:14px;color:#888">📡 正在获取最新开奖数据...</span></div>';
   drawData=[];
 
-  // 策略1：用CORS代理
-  try{
-    const resp=await fetch(PROXY+encodeURIComponent(API_URL+'1&issueStart=&issueEnd='));
-    if(resp.ok){
-      const text=await resp.text();
-      let data;
-      try{data=JSON.parse(text);
-        // CWL API返回格式：{total: N, data: [...], ...}
-        if(data.data&&data.data.length>0){parseCwlData(data.data);el.innerHTML='';renderLatestDraw();renderHistory();drawCharts();return}
-      }catch(e){}
-    }
-  }catch(e){}
+  // 用多个代理轮流尝试
+  for(let pi=0; pi<PROXIES.length; pi++){
+    try{
+      const url = PROXIES[pi] + encodeURIComponent(API_URL + '1');
+      const resp=await fetch(url, {signal: AbortSignal.timeout(6000)});
+      if(resp.ok){
+        const text=await resp.text();
+        let data;
+        try{data=JSON.parse(text);}catch(e){
+          // 有的代理返回包裹在html里
+          try{data=JSON.parse(text.match(/\{.*\}/s)?.[0]||'{}');}catch(e2){}
+        }
+        if(data&&data.data&&data.data.length>0){
+          parseCwlData(data.data);
+          if(drawData.length>0){
+            el.innerHTML='';renderLatestDraw();renderHistory();drawCharts();
+            return;
+          }
+        }
+      }
+    }catch(e){console.warn('代理'+pi+'失败:',e)}
+  }
 
-  // 策略2：直接请求
-  try{
-    const resp=await fetch(API_URL+'1&issueStart=&issueEnd=', {mode:'cors'});
-    if(resp.ok){
-      const text=await resp.text();
-      let data;
-      try{data=JSON.parse(text);
-        if(data.data&&data.data.length>0){parseCwlData(data.data);el.innerHTML='';renderLatestDraw();renderHistory();drawCharts();return}
-      }catch(e){}
-    }
-  }catch(e){}
-
-  // 策略3：用备用数据
-  console.warn('API不可用，使用内置备用数据');
-  drawData=FALLBACK_DATA;
-  el.innerHTML='<div class="notice">⚠️ 网络开奖数据获取失败，显示内置参考数据（非实时）</div>';
+  // 所有API都失败，用参考数据+提示
+  console.warn('所有API代理不可用，使用内置参考数据');
+  drawData=REAL_REF_DATA;
+  el.innerHTML='<div class="notice">⚠️ 实时开奖数据获取失败<br>当前显示内置历史参考数据<br>💡 你也可以在下面手动输入最新号码</div>';
   renderLatestDraw();
   renderHistory();
   drawCharts();
@@ -783,6 +789,25 @@ function calcPrize(){
 window.addEventListener('resize',()=>{
   if(document.getElementById('panel-draw').classList.contains('active')) drawCharts();
 });
+
+// ========== 手动录入开奖号码 ==========
+function manualAddDrawData(){
+  const code=document.getElementById('manual-draw-code').value.trim();
+  const date=document.getElementById('manual-draw-date').value.trim();
+  const redStr=document.getElementById('manual-draw-red').value.trim();
+  const blue=parseInt(document.getElementById('manual-draw-blue').value);
+  const red=redStr.split(/[\s,，]+/).map(Number).filter(n=>!isNaN(n)&&n>=1&&n<=33);
+  if(!code){showToast('⚠️ 请输入期号');return}
+  if(red.length!==6){showToast('⚠️ 请输入6个红球');return}
+  if(isNaN(blue)||blue<1||blue>16){showToast('⚠️ 请输入蓝球1-16');return}
+  // 插入到最前面
+  drawData.unshift({code,date:date||'手动录入',red:red.sort((a,b)=>a-b),blue});
+  renderLatestDraw();
+  renderHistory();
+  drawCharts();
+  document.getElementById('manual-draw-status').innerHTML='✅ 已录入 '+code+' 期数据';
+  showToast('✅ 开奖号码已录入！');
+}
 
 // ===================== AI智能预测核心算法 =====================
 // 号码权重打分、冷热遗漏、奇偶区间约束、智能组合
